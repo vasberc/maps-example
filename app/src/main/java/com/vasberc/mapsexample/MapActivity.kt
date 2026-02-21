@@ -13,9 +13,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -36,6 +38,7 @@ class MapActivity : ComponentActivity() {
 @Composable
 fun MapScreen(viewModel: MapViewModel = viewModel()) {
     MaterialTheme {
+        val mapState by viewModel.mapState.collectAsStateWithLifecycle()
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
@@ -46,8 +49,9 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
-                    circleCenter = viewModel.circleCenter,
-                    circleRadiusKm = viewModel.circleRadiusKm,
+                    circleCenter = mapState.circleCenter,
+                    circleRadiusKm = mapState.circleRadiusKm,
+                    zoom = mapState.zoom,
                     onMapClick = { latLng ->
                         viewModel.updateCircleCenter(latLng)
                     }
@@ -55,7 +59,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
 
                 // Slider for circle radius at the bottom
                 RadiusSlider(
-                    radius = viewModel.circleRadiusKm,
+                    radius = mapState.circleRadiusKm,
                     onRadiusChange = { newRadius ->
                         viewModel.updateCircleRadiusKm(newRadius)
                     },
@@ -73,18 +77,19 @@ fun MapContent(
     modifier: Modifier = Modifier,
     circleCenter: LatLng?,
     circleRadiusKm: Float,
+    zoom: Float,
     onMapClick: (LatLng) -> Unit
 ) {
     val defaultLocation = LatLng(20.0, 0.0)
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(defaultLocation, 6f)
+        position = CameraPosition.fromLatLngZoom(defaultLocation, zoom)
     }
 
-    // Update camera position when circle center changes
-    LaunchedEffect(circleCenter) {
+    // Update camera position when circle center or zoom changes
+    LaunchedEffect(circleCenter, zoom) {
         if (circleCenter != null) {
             cameraPositionState.animate(
-                update = CameraUpdateFactory.newLatLngZoom(circleCenter, 6f),
+                update = CameraUpdateFactory.newLatLngZoom(circleCenter, zoom),
                 durationMs = 1000
             )
         }

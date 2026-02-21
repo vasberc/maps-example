@@ -1,61 +1,37 @@
-# Maps Example - Circle with Radius Slider
+# Zoom Calculation in Google Maps with Dynamic Circle Radius
 
-## Overview
-This Android application demonstrates a Google Maps activity built with Jetpack Compose that allows users to:
-- Tap on the map to place a circle at that location
-- Adjust the circle's radius using a slider (default: 500 km, range: 10-2000 km)
+## Problem
+When displaying a circle on a Google Map with a dynamic radius controlled by a slider, the map's zoom level needs to automatically adjust to keep the entire circle visible on screen at all times.
 
-## Architecture
+## Solution: Logarithmic Zoom Calculation
 
-### State Management
-- **ViewModel Pattern**: Uses `MapViewModel` to manage and preserve state
-- **State Hoisting**: All state is hoisted to the ViewModel and accessed through the Composable layer
-- The ViewModel provides:
-  - `circleCenter: LatLng?` - The tapped location for the circle
-  - `circleRadiusKm: Float` - The current radius in kilometers
-  - `updateCircleCenter(LatLng)` - Updates the circle center
-  - `updateCircleRadiusKm(Float)` - Updates the circle radius
+The ViewModel automatically calculates an appropriate zoom level when the radius changes using a logarithmic approach:
 
-### Composable Structure
-
-**MapActivity.kt** - Main activity containing:
-- `MapScreen()` - Root composable that applies Material theme and manages layout
-- `MapContent()` - Handles the Google Map display and circle rendering
-- `RadiusSlider()` - UI component for adjusting circle radius
-
-The layout uses a Column with:
-- Map taking up 80% of the screen (weight = 1f)
-- Slider taking up 20% of the screen at the bottom
-
-### Key Features
-1. **Touch Interaction**: Tap anywhere on the map to set the circle center
-2. **Dynamic Circle**: Circle appears with blue outline and semi-transparent blue fill
-3. **Radius Control**: Slider updates circle radius in real-time
-4. **State Persistence**: Circle position and radius are preserved across recompositions
-
-## Dependencies Added
-- Jetpack Compose UI & Material3
-- Google Maps Compose
-- Google Play Services Maps
-- Jetpack Lifecycle ViewModel Compose
-
-## Setup Required
-Before running the app, add your Google Maps API key to `AndroidManifest.xml`:
-
-```xml
-<meta-data
-    android:name="com.google.android.geo.API_KEY"
-    android:value="YOUR_GOOGLE_MAPS_API_KEY_HERE" />
+```kotlin
+fun updateCircleRadiusKm(radiusKm: Float) {
+    val radiusDiff = radiusKm / INITIALS_RADIUS_KM  // Ratio of new radius to initial (500 km)
+    val newZoom = INITIAL_ZOOM - log2(radiusDiff)    // Zoom inversely proportional to radius
+    _mapState.value = _mapState.value.copy(circleRadiusKm = radiusKm, zoom = newZoom)
+}
 ```
 
-You can obtain an API key from the [Google Cloud Console](https://console.cloud.google.com/).
+### Constants
+- `INITIALS_RADIUS_KM = 500f` - Default/baseline radius
+- `INITIAL_ZOOM = 5.9f` - Default zoom level at baseline radius
 
-## Permissions
-The app requires the following permissions:
-- `INTERNET` - For map data
-- `ACCESS_FINE_LOCATION` - For precise location access
-- `ACCESS_COARSE_LOCATION` - For approximate location access
+### How It Works
+1. **Calculate the ratio** between the new radius and the baseline radius (500 km)
+2. **Use logarithmic scale** (`log2`) to convert the ratio to zoom level changes
+3. **Decrease zoom as radius increases** - This ensures larger circles are displayed with more zoom out, while smaller circles are displayed with more zoom in
 
-Note: On Android 6.0+, runtime permissions must be requested from the user.
+### Examples
+- **Default**: 500 km radius → zoom level 5.9
+- **Double radius**: 1000 km radius → zoom decreases by ~1 level (≈ 4.9)
+- **Half radius**: 250 km radius → zoom increases by ~1 level (≈ 6.9)
 
-# maps-example
+### Benefits
+- ✅ Larger circles use lower zoom levels (zoomed out view)
+- ✅ Smaller circles use higher zoom levels (zoomed in view)
+- ✅ Smooth, visually balanced transitions between radius changes
+- ✅ Entire circle remains visible on the map at all times
+- ✅ Mathematical relationship ensures consistent visual scaling

@@ -1,28 +1,37 @@
 package com.vasberc.mapsexample
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import com.google.android.gms.maps.model.LatLng
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlin.math.log2
 
 class MapViewModel : ViewModel() {
-    // Circle radius in kilometers
-    private val _circleRadiusKm = mutableFloatStateOf(500f)
-    val circleRadiusKm: Float get() = _circleRadiusKm.floatValue
 
-    // Circle center location (tap location)
-    private val _circleCenter = mutableStateOf<LatLng?>(null)
-    val circleCenter: LatLng? get() = _circleCenter.value
+    private val _mapState = MutableStateFlow(MapState())
+    val mapState = _mapState.asStateFlow()
 
     fun updateCircleCenter(latLng: LatLng) {
-        _circleCenter.value = latLng
+        _mapState.value = _mapState.value.copy(circleCenter = latLng)
     }
 
     fun updateCircleRadiusKm(radiusKm: Float) {
-        _circleRadiusKm.floatValue = radiusKm
+        val radiusDiff = radiusKm / INITIAL_RADIUS_KM
+        val newZoom = INITIAL_ZOOM - log2(radiusDiff)
+        println("Radius: $radiusKm km, Zoom: $newZoom")
+        _mapState.value = _mapState.value.copy(circleRadiusKm = radiusKm, zoom = newZoom)
     }
 }
+
+data class MapState(
+    val circleCenter: LatLng? = null,
+    val circleRadiusKm: Float = INITIAL_RADIUS_KM,
+    val zoom: Float = INITIAL_ZOOM
+)
+
+private const val INITIAL_RADIUS_KM = 500f
+private const val INITIAL_ZOOM = 5.9f
+
+
 
 
